@@ -1,0 +1,4 @@
+# Garante a consistência dos finais de linha entre diferentes sistemas operacionais.
+* text=auto eol=lf
+
+*.sh text eol=lf
