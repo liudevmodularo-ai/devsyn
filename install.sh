@@ -48,7 +48,7 @@ if [[ -z "${DOMAIN:-}" ]]; then
     while true; do
         ask "Informe o domínio (ex: devsyn.seudominio.com):"
         read -r DOMAIN
-        DOMAIN="${DOMAIN// /}"
+        DOMAIN="$(echo "$DOMAIN" | tr -d '[:space:]')" # Remove todos os caracteres de espaço em branco (incluindo \n, \r, etc.)
         if [[ -z "$DOMAIN" ]]; then
             warn "Domínio não pode ser vazio."
         elif [[ ! "$DOMAIN" =~ ^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-9])?\.)+[a-zA-Z]{2,}$ ]]; then
