@@ -214,7 +214,7 @@ if [[ -d /etc/nginx/sites-enabled ]]; then
 fi
 
 # ---------- Detecção automática de porta livre ----------
-find_free_port() {
+function find_free_port() {
     local start_port="${1:-5000}"
     local max_port=$((start_port + 100))
     local p="$start_port"
