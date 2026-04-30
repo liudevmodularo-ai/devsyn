@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevSyn - Cowork</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- CodeMirror 6 - Editor de Código -->
+    <script src="https://cdn.jsdelivr.net/npm/@codemirror/view@6.26.3/dist/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@codemirror/state@6.4.1/dist/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@codemirror/language@6.10.1/dist/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@codemirror/lang-python@6.1.6/dist/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@codemirror/theme-one-dark@6.1.2/dist/index.min.js"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>">
+</head>
+<body>
+    <div class="cowork-grid">
+        <!-- 🗂️ Área de Projetos -->
+        <aside class="panel projects-panel">
+            <header>
+                <h3>Projetos</h3>
+            </header>
+            <main class="projects-main">
+                <div id="file-tree"></div>
+            </main> 
+        </aside>
+
+        <!-- 💬 Área de Chat & 📁 Área de Trabalho -->
+        <div class="main-content">
+            <!-- 💬 Área de Chat dos Agentes -->
+            <section class="panel chat-panel">
+                <header>
+                    <h3>Chat dos Agentes</h3>
+                </header>
+                <main class="chat-messages" id="chat-messages">
+                    <!-- Messages will be appended here -->
+                    <div class="message agent">Olá! Sou o Agente Arquiteto. Como posso ajudar?</div>
+                </main>
+                <footer>
+                    <input type="text" id="chat-input" placeholder="Converse com os agentes...">
+                </footer>
+            </section>
+
+            <!-- 📁 Área de Trabalho (Editor/Terminal) -->
+            <section class="panel workspace-panel">
+                <header class="workspace-header">
+                    <h3>Área de Trabalho</h3>
+                    <button id="save-file-btn" class="header-btn" disabled>Salvar</button>
+                </header>
+                <main class="workspace-main">
+                    <div id="editor-container"></div>
+                </main> 
+            </section>
+        </div>
+
+        <!-- 📊 Área de Progresso & 🧠 Contexto & ⚙️ Configurações -->
+        <aside class="panel sidebar-panel">
+            <header>
+                <h3>Progresso</h3>
+            </header>
+            <main class="progress-main">
+                <ul id="task-list">
+                    <!-- Tarefas serão inseridas dinamicamente aqui -->
+                </ul>
+            </main>
+            <footer>
+                <div id="context-info-display" class="context-info">🧠 Contexto: Carregando...</div>
+                <div class="settings-btn">⚙️ Configurações</div>
+            </footer>
+        </aside>
+    </div>
+
+    <!-- ⚙️ Modal de Configurações -->
+    <div class="settings-modal-overlay hidden">
+        <div class="settings-modal panel">
+            <header>
+                <h3>⚙️ Configurações de IA</h3>
+                <button class="close-btn">&times;</button>
+            </header>
+            <main>
+                <p class="settings-description">
+                    Configure as chaves de API para os provedores de IA. As chaves são salvas localmente no seu navegador e não são enviadas para nossos servidores.
+                </p>
+                <div class="provider-list">
+                    {% for provider_id in fallback_order %}
+                        {% set provider = providers.get(provider_id) %}
+                        {% if provider %}
+                        <div class="provider-config">
+                            <div class="provider-header">
+                                <span class="provider-name">{{ provider.name }}</span>
+                                <!-- A lógica de status será dinâmica no futuro -->
+                                <span class="provider-status active">Ativa</span>
+                            </div>
+                            <div class="provider-body">
+                                <input type="password" id="key-{{ provider_id }}" data-provider="{{ provider_id }}" placeholder="Cole sua API Key aqui...">
+                                <a href="{{ provider.url }}" target="_blank" class="get-key-btn">Obter Chave</a>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </main>
+            <footer>
+                <button class="save-settings-btn">Salvar Configurações</button>
+            </footer>
+        </div>
+    </div>
+
+    <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
