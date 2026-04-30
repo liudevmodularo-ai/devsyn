@@ -446,7 +446,7 @@ ExecStart=$APP_DIR/venv/bin/gunicorn \\
     --access-logfile $APP_DIR/logs/access.log \\
     --error-logfile $APP_DIR/logs/error.log \\
     --timeout 120 \\
-    src.app:app
+    run:app
 Restart=always
 RestartSec=10
 

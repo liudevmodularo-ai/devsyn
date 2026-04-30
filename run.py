@@ -6,6 +6,9 @@ from pathlib import Path
 import logging
 import uuid
 import chromadb
+import sqlite3
+import json
+import threading
 
 # Configure logging
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -19,22 +22,69 @@ chroma_client = chromadb.PersistentClient(path=config.VECTOR_DB_PATH)
 # Assume-se que uma coleção padrão 'devsyn_context' é usada.
 context_collection = chroma_client.get_or_create_collection(name="devsyn_context")
 
-# --- In-Memory Task Manager (para simplicidade) ---
+# --- Persistent Task Manager (SQLite) ---
 class TaskManager:
-    def __init__(self):
-        self.tasks = {}
+    def __init__(self, db_path):
+        self.db_path = db_path
+        self.lock = threading.Lock()
+        self._init_db()
+
+    def _get_conn(self):
+        # A conexão deve ser criada por thread em um app web.
+        # O timeout lida com a contenção de lock do SQLite.
+        return sqlite3.connect(self.db_path, timeout=10)
+
+    def _init_db(self):
+        with self.lock:
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS tasks (
+                        id TEXT PRIMARY KEY,
+                        description TEXT NOT NULL,
+                        status TEXT NOT NULL,
+                        result TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                conn.commit()
 
     def add_task(self, description):
         task_id = str(uuid.uuid4())
-        self.tasks[task_id] = {"id": task_id, "description": description, "status": "doing"}
+        with self.lock:
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "INSERT INTO tasks (id, description, status) VALUES (?, ?, ?)",
+                    (task_id, description, "doing")
+                )
+                conn.commit()
+        logger.info(f"Task {task_id} added to the database.")
         return task_id
 
     def update_task(self, task_id, status, result=None):
-        if task_id in self.tasks:
-            self.tasks[task_id]["status"] = status
-            self.tasks[task_id]["result"] = result
+        result_json = json.dumps(result) if result is not None else None
+        with self.lock:
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "UPDATE tasks SET status = ?, result = ? WHERE id = ?",
+                    (status, result_json, task_id)
+                )
+                conn.commit()
+        logger.info(f"Task {task_id} updated to status '{status}'.")
 
-task_manager = TaskManager()
+    def get_all_tasks(self):
+        with self._get_conn() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, description, status FROM tasks ORDER BY created_at DESC")
+            tasks = [dict(row) for row in cursor.fetchall()]
+        return tasks
+
+# Inicializa o TaskManager com um arquivo de banco de dados persistente
+task_db_path = Path(config.VECTOR_DB_PATH).parent / "tasks.sqlite"
+task_manager = TaskManager(db_path=str(task_db_path))
 
 @app.route('/')
 def index():
@@ -132,7 +182,7 @@ def api_context_info():
 @app.route('/api/tasks')
 def api_tasks():
     """Endpoint para obter a lista de tarefas e seus status."""
-    return jsonify(list(task_manager.tasks.values()))
+    return jsonify(task_manager.get_all_tasks())
 
 @app.route('/api/chat', methods=['POST'])
 def api_chat():
