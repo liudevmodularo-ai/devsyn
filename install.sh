@@ -212,6 +212,7 @@ if [[ -d /etc/nginx/sites-enabled ]]; then
         exit 1
     fi
     info "  Nenhum conflito de server_name detectado."
+fi # <--- Adicionado para fechar o bloco 'if'
 
 # ---------- Detecção automática de porta livre ----------
 find_free_port() {
@@ -364,13 +365,14 @@ info "Configurando virtualenv Python..."
 REQ_HASH_FILE="$APP_DIR/.requirements.sha256"
 NEW_HASH="$(sha256sum "$APP_DIR/requirements.txt" | awk '{print $1}')"
 OLD_HASH=""
-[[ -f "$REQ_HASH_FILE" ]] && OLD_HASH="$(cat "$REQ_HASH_FILE")"
-if [[ "$NEW_HASH" != "$OLD_HASH" && -d "$APP_DIR/venv" ]]; then
+[[ -f "$REQ_HASH_FILE" ]] && OLD_HASH="$(cat "$REQ_HASH_FILE" 2>/dev/null)"
+if [[ "$NEW_HASH" != "$OLD_HASH" ]]; then
     info "  requirements.txt mudou - recriando venv do zero..."
     rm -rf "$APP_DIR/venv"
 fi
 
 sudo -u "$USER" bash -c "
+pip cache purge # Limpa o cache do pip para evitar problemas de dependência
 set -e
 cd '$APP_DIR'
 if [ ! -f venv/bin/activate ]; then
