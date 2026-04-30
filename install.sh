@@ -200,7 +200,7 @@ if [[ -d /etc/nginx/sites-enabled ]]; then
         [[ -e "$site" ]] || continue
         site_name="$(basename "$site")"
         [[ "$site_name" == "$SERVICE_NAME" ]] && continue
-        if grep -E "^\s*server_name\s+" "$site" 2>/dev/null | grep -qE "(^|[[:space:]])${DOMAIN}([[:space:]]|;)"; then
+        if grep -E "^[[:space:]]*server_name[[:space:]]+" "$site" 2>/dev/null | grep -qE "(^|[[:space:]])${DOMAIN}([[:space:]]|;)"; then
             CONFLICT_SITE="$site_name"
             break
         fi
@@ -220,7 +220,7 @@ function find_free_port() {
     local p="$start_port"
     while [[ "$p" -lt "$max_port" ]]; do
         if ! ss -tlnH "sport = :$p" 2>/dev/null | grep -q LISTEN; then
-            if ! grep -rE "proxy_pass\s+http(s)?://127\.0\.0\.1:$p\b" /etc/nginx/sites-enabled/ 2>/dev/null | grep -v "/$SERVICE_NAME:" | grep -q .; then
+            if ! grep -rE "proxy_pass[[:space:]]+http(s)?://127\.0\.0\.1:$p\b" /etc/nginx/sites-enabled/ 2>/dev/null | grep -v "/$SERVICE_NAME:" | grep -q .; then
                 echo "$p"
                 return 0
             fi
@@ -239,9 +239,11 @@ if [[ -f "$PORT_FILE" ]]; then
             info "  Reusando porta salva: $APP_PORT"
         elif systemctl is-active --quiet "$SERVICE_NAME"; then
             CURRENT_PID="$(systemctl show -p MainPID --value "$SERVICE_NAME" 2>/dev/null || echo 0)"
-            if [[ "$CURRENT_PID" -gt 0 ]] && ss -tlnpH "sport = :$SAVED_PORT" 2>/dev/null | grep -q "pid=$CURRENT_PID"; then
-                APP_PORT="$SAVED_PORT"
-                info "  Reusando porta atual do serviço: $APP_PORT"
+            if [[ "$CURRENT_PID" -gt 0 ]]; then
+                if ss -tlnpH "sport = :$SAVED_PORT" 2>/dev/null | grep -q "pid=$CURRENT_PID"; then
+                    APP_PORT="$SAVED_PORT"
+                    info "  Reusando porta atual do serviço: $APP_PORT"
+                fi
             fi
         fi
     fi
