@@ -48,7 +48,7 @@ if [[ -z "${DOMAIN:-}" ]]; then
     while true; do
         ask "Informe o domínio (ex: devsyn.seudominio.com):"
         read -r DOMAIN
-        DOMAIN="$(echo "$DOMAIN" | tr -d '[:space:]')" # Remove todos os caracteres de espaço em branco (incluindo \n, \r, etc.)
+        DOMAIN="$(echo "$DOMAIN" | tr -d '[:space:]')" # Remove todos os caracteres de espaço em branco
         if [[ -z "$DOMAIN" ]]; then
             warn "Domínio não pode ser vazio."
         elif [[ ! "$DOMAIN" =~ ^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$ ]]; then
@@ -131,7 +131,6 @@ SSL_EOF
         done < <(grep -E 'open\(\) ".*" failed.*No such file' "$err_log" || true)
 
         # Auto-fix B: certificado Let's Encrypt referenciado mas inexistente
-        # Padrão: /etc/letsencrypt/live/<dominio>/fullchain.pem
         while IFS= read -r cert_err; do
             local cert_path cert_domain
             cert_path="$(echo "$cert_err" | sed -nE 's/.*"(\/etc\/letsencrypt\/live\/[^"/]+\/[^"]+)".*/\1/p')"
@@ -174,7 +173,7 @@ SSL_EOF
                 warn "    sudo certbot certonly --standalone -d $cert_domain -m SEU_EMAIL --agree-tos"
             fi
 
-            # Religa nginx (mesmo se cert falhou, para tentar próximas iterações)
+            # Religa nginx
             $nginx_was_up && systemctl start nginx 2>/dev/null || true
         done < <(grep -E 'cannot load certificate.*"\/etc\/letsencrypt\/live\/' "$err_log" || true)
 
@@ -212,7 +211,7 @@ if [[ -d /etc/nginx/sites-enabled ]]; then
         exit 1
     fi
     info "  Nenhum conflito de server_name detectado."
-fi # <--- Adicionado para fechar o bloco 'if'
+fi
 
 # ---------- Detecção automática de porta livre ----------
 find_free_port() {
@@ -254,7 +253,7 @@ if [[ -z "$APP_PORT" ]]; then
         error "Não foi possível encontrar uma porta livre entre $DEFAULT_PORT e $((DEFAULT_PORT + 100))."
         exit 1
     }
-}
+fi
 
 echo ""
 info "Domínio:    $DOMAIN"
@@ -305,7 +304,7 @@ if command -v certbot >/dev/null 2>&1; then
         CERTBOT_OK=true
         info "  Certbot funcional: $(certbot --version 2>&1 | head -1)"
     else
-        warn "  Certbot existe mas falha ao executar (provavelmente bug de OpenSSL/cryptography)."
+        warn "  Certbot existe mas falha ao executar."
     fi
 fi
 
@@ -323,7 +322,7 @@ if ! $CERTBOT_OK; then
         CERTBOT_OK=true
         info "  Certbot snap pronto."
     fi
-}
+fi
 
 # ---------- Copia o projeto para /opt/devsyn ----------
 info "Copiando arquivos do projeto para $APP_DIR..."
@@ -417,7 +416,6 @@ server {
 NGINX_EOF
 
 ln -sf "$NGINX_CONF" "/etc/nginx/sites-enabled/$SERVICE_NAME"
-# NÃO mexe em /etc/nginx/sites-enabled/default nem em outros sites
 
 info "Validando configuração final do Nginx..."
 nginx_health_check "final" || exit 1
@@ -466,6 +464,17 @@ if ! systemctl is-active --quiet "$SERVICE_NAME"; then
     SERVICE_OK=false
     warn "Serviço $SERVICE_NAME não ficou ativo. Últimos logs:"
     journalctl -u "$SERVICE_NAME" -n 30 --no-pager || true
+
+    # Check for common Python errors in logs
+    if journalctl -u "$SERVICE_NAME" -n 50 --no-pager | grep -qE "(SyntaxError|ModuleNotFoundError|ImportError|NameError|TypeError|ValueError)"; then
+        error "Detectado um erro Python na inicialização do aplicativo."
+        error "Isso geralmente indica um problema no código-fonte do aplicativo."
+        error "Verifique os logs detalhados acima para identificar a causa (ex: 'invalid syntax (task.py, line 43)')."
+        error "Você precisará corrigir o código do aplicativo e reiniciar o serviço."
+    elif journalctl -u "$SERVICE_NAME" -n 50 --no-pager | grep -qE "Failed to locate executable|No such file or directory"; then
+        error "Detectado que o executável do Gunicorn não foi encontrado ou não pôde ser executado."
+        error "Verifique se '/opt/devsyn/venv/bin/gunicorn' existe e tem permissões de execução para o usuário '$USER'."
+    fi
 fi
 
 # ---------- Firewall ----------
