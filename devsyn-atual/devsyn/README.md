@@ -15,10 +15,10 @@ O processo é semi-automatizado e seguro. Você se conecta à sua VPS e executa 
 ssh seu_usuario@ip_da_vps
 
 # 2. Clone o repositório e execute o script de instalação
-git clone https://github.com/SEU_USERNAME/devsyn.git /opt/devsyn
+git clone https://github.com/liudevmodularo-ai/devsyn.git /opt/devsyn
 cd /opt/devsyn
 chmod +x install.sh
-sudo DOMAIN="seu.dominio.com" ./install.sh
+sudo DOMAIN="lab.synapt.com.br" ./install.sh
 ```
 
 ## 🛠️ Desenvolvimento Local
