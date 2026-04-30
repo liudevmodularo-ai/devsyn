@@ -212,7 +212,6 @@ if [[ -d /etc/nginx/sites-enabled ]]; then
         exit 1
     fi
     info "  Nenhum conflito de server_name detectado."
-fi
 
 # ---------- Detecção automática de porta livre ----------
 find_free_port() {
