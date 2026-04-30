@@ -78,8 +78,17 @@ class TaskManager:
         with self._get_conn() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            cursor.execute("SELECT id, description, status FROM tasks ORDER BY created_at DESC")
-            tasks = [dict(row) for row in cursor.fetchall()]
+            cursor.execute("SELECT id, description, status, result FROM tasks ORDER BY created_at DESC")
+            tasks = []
+            for row in cursor.fetchall():
+                task = dict(row)
+                if task['result']:
+                    try:
+                        # O resultado é armazenado como uma string JSON
+                        task['result'] = json.loads(task['result'])
+                    except json.JSONDecodeError:
+                        task['result'] = {"error": "Invalid JSON result in DB"}
+                tasks.append(task)
         return tasks
 
 # Inicializa o TaskManager com um arquivo de banco de dados persistente
